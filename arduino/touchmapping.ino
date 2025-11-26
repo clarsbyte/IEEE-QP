@@ -82,12 +82,12 @@ void drawPage() {
   }
 
   // Prev 
-  tft.fillRect(0, 120, 160, 120, 0x7BEF); // 灰色-ish
+  tft.fillRect(0, 120, 160, 120, 0x7BEF); // grey
   tft.setCursor(40, 170);
   if (currentPage > 0) {
     tft.print("Prev");
   } else {
-    tft.print("Prev"); // 第一页也写着，但点了不会往前
+    tft.print("Prev"); 
   }
 
   // Next 
