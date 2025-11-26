@@ -11,7 +11,7 @@ import numpy as np
 from PlaneraryObjectSelection import PlanetaryObjectSelection
 
 serial = serial.Serial(
-        port='/dev/ttyUSB0',  
+        port='COM6',  
         baudrate=9600,
         timeout=1
     )
@@ -323,14 +323,16 @@ if __name__ == "__main__":
 
     while True:
         if serial.in_waiting > 0:
-            choice = serial.readline().decode('utf-8').strip()
+            choice = serial.readline()
+            choice = choice.decode('utf-8').strip()
             print(f"\nReceived: {choice}")
 
             if choice in PlanetaryObjectSelection.OBJECTS:
                 object_id = PlanetaryObjectSelection.OBJECTS[choice]
-                output_message = f"{choice} (ID: {object_id})\n"
-                print(f"Sending: {output_message.strip()}")
-                serial.write(output_message.encode('utf-8'))
+                data = PlanetaryObjectsFetcher.get_coordinates_degrees(object_id)
+                message = f"{data['ra_deg']:.4f},{data['dec_deg']:.4f}\n"
+                serial.write(message.encode('utf-8'))
+                print(f"Sent coordinates for {choice}: {message.strip()}")
             elif choice.isdigit():
                 # List all objects
                 all_objects = "\n".join([f"{name}: {obj_id}"
@@ -339,5 +341,3 @@ if __name__ == "__main__":
                 print("Sent all object names and IDs")
             else:
                 error_msg = f"Unknown object: {choice}\n"
-                print(error_msg.strip())
-                serial.write(error_msg.encode('utf-8'))
