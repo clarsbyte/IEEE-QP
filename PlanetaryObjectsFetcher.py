@@ -21,12 +21,38 @@ class PlanetaryObjectsFetcher:
     A utility class for fetching astronomical ephemeris data from NASA's JPL Horizons system.
     
     This class provides methods to retrieve coordinates and distances for various celestial
-    bodies such as planets, moons, asteroids, and comets. All data is geocentric (Earth-centered).
+    bodies such as planets, moons, asteroids, and comets. Coordinates are computed based on
+    the user's geographic location (via IP geolocation).
     
     Attributes:
         BASE_REQUEST_URL (str): The base URL for the JPL Horizons API endpoint.
     """
     BASE_REQUEST_URL = "https://ssd.jpl.nasa.gov/api/horizons.api"
+
+
+    @staticmethod
+    def get_user_location():
+        """
+        Get approximate user location using ipinfo.io.
+        
+        Returns:
+            tuple: A tuple containing (latitude, longitude, elevation_meters).
+                  Returns (0, 0, 0) if location lookup fails.
+        """
+        try:
+            data = requests.get("https://ipinfo.io/json").json()
+
+            loc = data.get("loc", "0,0")  # "lat,lon"
+            lat_str, lon_str = loc.split(",")
+
+            lat = float(lat_str)
+            lon = float(lon_str)
+            elev = 0  # no elevation data available iva ipinfo
+
+            return lat, lon, elev
+        except Exception as e:
+            print("Location lookup failed:", e)
+            return 0, 0, 0
 
 
     @staticmethod
@@ -53,63 +79,61 @@ class PlanetaryObjectsFetcher:
         return tomorrow.strftime("%Y-%m-%d")
     
 
-    @staticmethod
-    def fetch_ephemeris_data(target_body, quantities, start_date=None, stop_date=None,
-                           step_size="1h", center="399"):
+    @staticmethod 
+    def fetch_ephemeris_data(target_body, quantities):
         """
         Fetch ephemeris data for a specified celestial body from JPL Horizons API.
-
-        This method queries the Horizons system for astronomical data over a specified
-        time period with configurable intervals.
-
+        
+        This method queries the Horizons system for astronomical data over a 24-hour
+        period starting from the current date, with hourly intervals. Data is computed
+        from the user's geographic location obtained via IP geolocation.
+        
         Args:
             target_body (str): The Horizons identifier for the target body.
                               Examples: '301' for Moon, '10' for Sun, '499' for Mars.
             quantities (str): The type of data to retrieve.
-                            '2' = Apparent RA & DEC (coordinates)
+                            '4' = Azimuth & Elevation (local coordinates)
                             '20' = Observer range & range-rate (distance)
-            start_date (str, optional): Start date in 'YYYY-MM-DD' format.
-                                       Defaults to current date.
-            stop_date (str, optional): Stop date in 'YYYY-MM-DD' format.
-                                      Defaults to tomorrow's date.
-            step_size (str, optional): Time interval between data points.
-                                      Examples: '1h' (1 hour), '30m' (30 minutes), '1d' (1 day)
-                                      Defaults to '1h'.
-            center (str, optional): Observer location code.
-                                   '399' = Earth Geocentric (default)
-                                   '500@399' = Earth's center
-
+        
         Returns:
             list: A list containing the parsed ephemeris data line(s).
                  Returns empty list if the request fails.
         """
-        if start_date is None:
-            start_date = PlanetaryObjectsFetcher.get_current_date()
-        if stop_date is None:
-            stop_date = PlanetaryObjectsFetcher.get_tomorrow_date()
+        current_date = PlanetaryObjectsFetcher.get_current_date()
+        tomorrow_date = PlanetaryObjectsFetcher.get_tomorrow_date()
+
+        # Get real user geolocation
+        lat, lon, elev = PlanetaryObjectsFetcher.get_user_location()
+        elev_km = elev / 1000.0
+        
+        # Convert longitude to East longitude (0-360) if negative
+        if lon < 0:
+            lon = lon + 360
 
         params = {
             "format": "json",
             "COMMAND": str(target_body),
-            "CENTER": center,  # Observer location
+            "CENTER": "coord@399",  # Coordinate-based observer on Earth
+            "COORD_TYPE": "GEODETIC",
+            "SITE_COORD": f"'{lon},{lat},{elev_km}'",
             "MAKE_EPHEM": "YES",
             "EPHEM_TYPE": "OBSERVER",
             "OUT_UNITS": "KM-S",
             "QUANTITIES": quantities,
-            "START_TIME": start_date,
-            "STOP_TIME": stop_date,
-            "STEP_SIZE": step_size
+            "START_TIME": current_date,
+            "STOP_TIME": tomorrow_date,
+            "STEP_SIZE": "1h"
         }
 
-        response = requests.get("https://ssd.jpl.nasa.gov/api/horizons.api", params=params)
+        response = requests.get(PlanetaryObjectsFetcher.BASE_REQUEST_URL, params=params)
 
-        if (response.status_code == 200):
-            data_dict = response.json() # Converts json into dictionary
-            ephemeris_text = data_dict.get("result") # Gets the text inside the result key
+        if response.status_code == 200:
+            data_dict = response.json()  # Converts json into dictionary
+            ephemeris_text = data_dict.get("result")  # Gets the text inside the result key
 
             return PlanetaryObjectsFetcher.parse_ephemeris_data(ephemeris_text)
         else:
-            print(f"Error fetching ephemeris data: {response.status_code}")
+            print(f"Error fetching coordinates: {response.status_code}")
             return []
 
 
@@ -149,34 +173,28 @@ class PlanetaryObjectsFetcher:
         return data_lines
 
 
-    @staticmethod
-    def fetch_coordinates(target_body, start_date=None, stop_date=None, step_size="1h"):
+    @staticmethod   
+    def fetch_coordinates(target_body):
         """
-        Fetch the celestial coordinates (Right Ascension and Declination) for a target body.
-
-        This is a convenience method that wraps fetch_ephemeris_data with quantities='2'
-        to retrieve coordinate data.
-
+        Fetch the celestial coordinates (Azimuth and Elevation) for a target body.
+        
+        This is a convenience method that wraps fetch_ephemeris_data with quantities='4'
+        to retrieve local coordinate data based on the user's geographic location.
+        
         Args:
             target_body (str): The Horizons identifier for the target body.
                               Examples: '301' for Moon, '10' for Sun, '499' for Mars.
-            start_date (str, optional): Start date in 'YYYY-MM-DD' format.
-            stop_date (str, optional): Stop date in 'YYYY-MM-DD' format.
-            step_size (str, optional): Time interval (e.g., '1h', '30m', '1d').
-
+        
         Returns:
-            list: Parsed ephemeris data containing RA/DEC coordinates.
+            list: Parsed ephemeris data containing Azimuth/Elevation coordinates.
         """
-        return PlanetaryObjectsFetcher.fetch_ephemeris_data(
-            target_body, quantities="2",
-            start_date=start_date, stop_date=stop_date, step_size=step_size
-        )
+        return PlanetaryObjectsFetcher.fetch_ephemeris_data(target_body, quantities="4")
 
 
     @staticmethod
-    def fetch_distance(target_body, start_date=None, stop_date=None, step_size="1h"):
+    def fetch_distance(target_body):
         """
-        Fetch the distance (range) from Earth to a target celestial body.
+        Fetch the distance (range) from the user's location to a target celestial body.
 
         This is a convenience method that wraps fetch_ephemeris_data with quantities='20'
         to retrieve distance data.
@@ -184,160 +202,69 @@ class PlanetaryObjectsFetcher:
         Args:
             target_body (str): The Horizons identifier for the target body.
                               Examples: '301' for Moon, '10' for Sun, '499' for Mars.
-            start_date (str, optional): Start date in 'YYYY-MM-DD' format.
-            stop_date (str, optional): Stop date in 'YYYY-MM-DD' format.
-            step_size (str, optional): Time interval (e.g., '1h', '30m', '1d').
 
         Returns:
             list: Parsed ephemeris data containing distance/range information.
         """
-        return PlanetaryObjectsFetcher.fetch_ephemeris_data(
-            target_body, quantities="20",
-            start_date=start_date, stop_date=stop_date, step_size=step_size
-        )
+        return PlanetaryObjectsFetcher.fetch_ephemeris_data(target_body, quantities="20")
+
 
     @staticmethod
-    def radian_to_degree(radian):
+    def parse_coordinates(coord_string):
         """
-        Convert an angle from radians to degrees.
+        Parse azimuth and elevation from a coordinate string.
+
+        Extracts the numerical azimuth and elevation values from the raw
+        ephemeris coordinate data returned by fetch_coordinates().
 
         Args:
-            radian (float): Angle in radians.
-        Returns:
-            float: Angle in degrees (0-360 range).
-        """
-        degree = radian * (180.0 / np.pi)
-        if degree < 0:
-            degree = 360 + degree
-        return degree
-    
-    @staticmethod
-    def hms_to_degrees(hours, minutes, seconds):
-        """
-        Convert Right Ascension from hours, minutes, seconds to degrees.
-
-        Args:
-            hours (float): Hours (0-24)
-            minutes (float): Minutes (0-60)
-            seconds (float): Seconds (0-60)
+            coord_string (str): Raw coordinate string from Horizons API.
+                               Example: "2025-Nov-29 00:00 *m  131.587713  38.069515"
 
         Returns:
-            float: Angle in degrees (0-360).
+            tuple: A tuple containing (azimuth, elevation) as floats.
+                  - azimuth (float): Horizontal angle in degrees (0-360)
+                  - elevation (float): Vertical angle in degrees (0-90)
         """
-        return (hours + minutes/60.0 + seconds/3600.0) * 15.0
-
-    @staticmethod
-    def dms_to_degrees(degrees, arcminutes, arcseconds):
-        """
-        Convert Declination from degrees, arcminutes, arcseconds to decimal degrees.
-
-        Args:
-            degrees (float): Degrees
-            arcminutes (float): Arcminutes (0-60)
-            arcseconds (float): Arcseconds (0-60)
-
-        Returns:
-            float: Angle in decimal degrees.
-        """
-        sign = 1 if degrees >= 0 else -1
-        return sign * (abs(degrees) + arcminutes/60.0 + arcseconds/3600.0)
-
-    @staticmethod
-    def parse_ra_dec(coordinate_data):
-        """
-        Parse Right Ascension and Declination from JPL Horizons coordinate data.
-
-        Args:
-            coordinate_data (list): List containing coordinate string from fetch_coordinates
-
-        Returns:
-            dict: Dictionary with 'ra_deg' and 'dec_deg' in decimal degrees,
-                  or None if parsing fails.
-        """
-        if not coordinate_data or len(coordinate_data) == 0:
-            return None
-
-        try:
-            # Split the data line by whitespace
-            parts = coordinate_data[0].split()
-
-            # RA is typically in format HH MM SS.ss
-            # DEC is typically in format +/-DD MM SS.s
-            # The exact positions may vary, so we'll look for the pattern
-
-            ra_hours = float(parts[3])
-            ra_minutes = float(parts[4])
-            ra_seconds = float(parts[5])
-
-            dec_degrees = float(parts[6])
-            dec_arcminutes = float(parts[7])
-            dec_arcseconds = float(parts[8])
-
-            ra_deg = PlanetaryObjectsFetcher.hms_to_degrees(ra_hours, ra_minutes, ra_seconds)
-            dec_deg = PlanetaryObjectsFetcher.dms_to_degrees(dec_degrees, dec_arcminutes, dec_arcseconds)
-
-            return {
-                'ra_deg': ra_deg,
-                'dec_deg': dec_deg,
-                'ra_hms': f"{ra_hours:02.0f}h {ra_minutes:02.0f}m {ra_seconds:05.2f}s",
-                'dec_dms': f"{dec_degrees:+03.0f}° {dec_arcminutes:02.0f}' {dec_arcseconds:04.1f}\""
-            }
-        except (IndexError, ValueError) as e:
-            print(f"Error parsing coordinate data: {e}")
-            print(f"Data: {coordinate_data}")
-            return None
-
-    @staticmethod
-    def get_coordinates_degrees(target_body, start_date=None, stop_date=None, step_size="1h"):
-        """
-        Get Right Ascension and Declination in degrees for a target body.
-
-        Args:
-            target_body (str): The Horizons identifier for the target body.
-            start_date (str, optional): Start date in 'YYYY-MM-DD' format.
-            stop_date (str, optional): Stop date in 'YYYY-MM-DD' format.
-            step_size (str, optional): Time interval (e.g., '1h', '30m', '1d').
-
-        Returns:
-            dict: Dictionary with 'ra_deg' and 'dec_deg' in decimal degrees.
-        """
-        coords = PlanetaryObjectsFetcher.fetch_coordinates(
-            target_body,
-            start_date=start_date,
-            stop_date=stop_date,
-            step_size=step_size
-        )
-        return PlanetaryObjectsFetcher.parse_ra_dec(coords)
+        parts = coord_string.split()
+        azimuth = float(parts[-2])
+        elevation = float(parts[-1])
+        return azimuth, elevation
     
 #serial.write(PlanetaryObjectsFetcher.fetch_distance("301")[0])
     
 if __name__ == "__main__":
-    # Example: Get Moon coordinates in degrees (default: current time)
-    print("Moon coordinates in degrees (current time):")
-    moon_data = PlanetaryObjectsFetcher.get_coordinates_degrees("301")
-    if moon_data:
-        print(f"   Right Ascension:  {moon_data['ra_deg']:.4f}° ({moon_data['ra_hms']})")
-        print(f"   Declination:      {moon_data['dec_deg']:.4f}° ({moon_data['dec_dms']})")
-    
+    print("Arduino-Python Celestial Object Tracker")
+    print("========================================")
+    print(f"Serial port: {serial.port}")
+    print(f"Baudrate: {serial.baudrate}")
     print("Available objects:", ", ".join(PlanetaryObjectSelection.OBJECTS.keys()))
+    print("\nWaiting for Arduino commands...\n")
 
     while True:
         if serial.in_waiting > 0:
-            choice = serial.readline()
-            choice = choice.decode('utf-8').strip()
-            print(f"\nReceived: {choice}")
+            raw_data = serial.readline()
+            raw_data = raw_data.decode('utf-8').strip()
+            print(f"Received: {raw_data}")
 
-            if choice in PlanetaryObjectSelection.OBJECTS:
-                object_id = PlanetaryObjectSelection.OBJECTS[choice]
-                data = PlanetaryObjectsFetcher.get_coordinates_degrees(object_id)
-                message = f"{data['ra_deg']:.4f},{data['dec_deg']:.4f}\n"
-                serial.write(message.encode('utf-8'))
-                print(f"Sent coordinates for {choice}: {message.strip()}")
-            elif choice.isdigit():
-                # List all objects
-                all_objects = "\n".join([f"{name}: {obj_id}"
-                                        for name, obj_id in PlanetaryObjectSelection.OBJECTS.items()])
-                serial.write(all_objects.encode('utf-8'))
-                print("Sent all object names and IDs")
-            else:
-                error_msg = f"Unknown object: {choice}\n"
+            # Parse "STAR:ObjectName" format from Arduino
+            if raw_data.startswith("STAR:"):
+                object_name = raw_data[5:]  # Remove "STAR:" prefix
+
+                if object_name in PlanetaryObjectSelection.OBJECTS:
+                    object_id = PlanetaryObjectSelection.OBJECTS[object_name]
+                    print(f"Fetching coordinates for {object_name} (ID: {object_id})...")
+
+                    try:
+                        data = PlanetaryObjectsFetcher.fetch_coordinates(object_id)
+                        if data:
+                            azimuth, elevation = PlanetaryObjectsFetcher.parse_coordinates(data[0])
+                            message = f"{azimuth:.6f},{elevation:.6f}\n"
+                            serial.write(message.encode('utf-8'))
+                            print(f"✓ Sent: Az={azimuth:.2f}° El={elevation:.2f}°\n")
+                        else:
+                            print(f"✗ No data returned for {object_name}\n")
+                    except Exception as e:
+                        print(f"✗ Error fetching data: {e}\n")
+                else:
+                    print(f"✗ Unknown object: {object_name}\n")

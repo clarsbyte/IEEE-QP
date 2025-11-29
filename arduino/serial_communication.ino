@@ -12,12 +12,11 @@ void loop() {
 
     
     int commaIndex = data.indexOf(',');
-    float ra = data.substring(0, commaIndex).toFloat();
-    float dec = data.substring(commaIndex + 1).toFloat();
+    float az = data.substring(0, commaIndex).toFloat();
+    float el = data.substring(commaIndex + 1).toFloat();
 
-    Serial.println(ra);
-    Serial.println(dec);
-
+    Serial.println(az);
+    Serial.println(el);
     delay(1000);
   }else{
     Serial.println("Moon");
