@@ -1,6 +1,6 @@
-# Celestial Object Tracker
+# Armillary Sphere
 
-A real-time celestial body tracking system combining Arduino touchscreen interface with NASA JPL Horizons API for accurate astronomical positioning.
+A real-time celestial body tracking system combining Arduino touchscreen interface and Servo Motors with NASA JPL Horizons API for accurate astronomical positioning.
 
 ## Overview
 
