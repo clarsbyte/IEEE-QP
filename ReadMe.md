@@ -637,6 +637,6 @@ Special thanks to:
 
 ---
 
-**Made with ❤️ for astronomy enthusiasts**
+**Made with ❤️ for the IEEE Quarterly Projects**
 
 *Clear skies and happy tracking!* 🌙✨
