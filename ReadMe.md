@@ -620,14 +620,6 @@ for any purpose with or without fee, provided copyright notices are retained.
 
 ---
 
-## Contact & Support
-
-- **GitHub Issues:** [Report bugs or request features](https://github.com/yourusername/IEEE-QP/issues)
-- **Discussions:** [Ask questions and share ideas](https://github.com/yourusername/IEEE-QP/discussions)
-- **Email:** your.email@example.com
-
----
-
 ## Acknowledgments
 
 Special thanks to:
