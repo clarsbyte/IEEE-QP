@@ -1,54 +1,162 @@
-# Celestial Object Tracker
+# Armillary Sphere
 
-A real-time celestial body tracking system combining Arduino touchscreen interface with NASA JPL Horizons API for accurate astronomical positioning.
+A real-time, motorized celestial body tracking system that integrates an Arduino-driven touchscreen interface, servo and stepper motor positioning, and a laser pointer, combined with NASA's JPL Horizons API for precise astronomical orientation.
+
+This system displays real-time azimuth and elevation of planets and moons—and **physically aims a laser pointer** at their live position in the sky.
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+---
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Features](#features)
+- [Hardware Requirements](#hardware-requirements)
+- [Software Requirements](#software-requirements)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Motorized Tracking System](#motorized-tracking-system)
+- [Available Celestial Objects](#available-celestial-objects)
+- [Project Structure](#project-structure)
+- [System Architecture](#system-architecture)
+- [Troubleshooting](#troubleshooting)
+- [Future Enhancements](#future-enhancements)
+- [Contributing](#contributing)
+- [License](#license)
+
+---
 
 ## Overview
 
-This project provides an interactive touchscreen interface for selecting and tracking celestial objects (planets, moons, asteroids) with real-time azimuth and elevation coordinates. The system uses bidirectional serial communication between an Arduino-based touchscreen display and a Python backend that interfaces with NASA's JPL Horizons API.
+The Armillary Sphere is an interactive, automated object-pointing system designed for astronomy education and experimentation. Users select celestial objects on a touchscreen, and the system:
+
+1. **Obtains** real-time astronomical coordinates from NASA JPL Horizons
+2. **Converts** azimuth/elevation into mechanical motion commands
+3. **Positions** a stepper motor (yaw) and servo motor (pitch)
+4. **Aims** a laser pointer at the live sky location of the selected object
+
+The device uses robust **bidirectional serial communication** between Arduino and a Python backend, providing real-time positional data and smooth motor control.
+
+---
 
 ## Features
 
-- **Interactive Touchscreen UI**: Browse and select from 24 celestial objects including planets, moons, and dwarf planets
-- **Real-time Coordinate Tracking**: Get current azimuth and elevation for any selected object
-- **Location-aware**: Automatically detects user location via IP geolocation for accurate local coordinates
-- **NASA JPL Integration**: Fetches astronomical data from the official JPL Horizons system
-- **Live Display**: Arduino screen displays both object selection interface and current coordinates
-- **Bidirectional Communication**: Seamless Arduino ↔ Python serial communication
+### 🖐️ Touchscreen Object Selection
+Choose from 24 celestial objects including planets, moons, and dwarf planets with an intuitive touch interface.
+
+### 🌐 Location-Aware Tracking
+Automatic IP-based geolocation ensures coordinate accuracy for your specific viewing location.
+
+### 🛰️ NASA JPL Horizons API Integration
+Fetches precise azimuth and elevation data for any object in real time, accounting for Earth's rotation and orbital mechanics.
+
+### 🔄 Full Motorized Tracking
+- **Stepper motor** controls yaw (azimuth 0°–360°)
+- **Servo motor** controls pitch (elevation −90° to +90°)
+- Automatically orients toward the selected target
+
+### 🔦 Laser Pointer Object Indicator
+The laser physically points in the direction of the selected object, making it easy to locate celestial bodies in the night sky.
+
+### ↔️ Bidirectional Serial Communication
+Arduino requests object coordinates; Python responds with live data in a simple, robust protocol.
+
+### 📟 Live Display on TFT Screen
+View coordinates, menu pages, and selection interface directly on the Arduino-connected display.
+
+---
 
 ## Hardware Requirements
 
-- **Arduino Board**: Compatible with Arduino Uno or similar (ATmega328P-based)
-- **TFT Touchscreen Display**: 320x240 pixel display compatible with MCUFRIEND_kbv library
-- **Touch Panel**: 4-wire resistive touchscreen
+### Microcontroller & Display
+
+| Component | Specification |
+|-----------|---------------|
+| **Microcontroller** | Arduino Uno or compatible ATmega328P board |
+| **Display** | 320×240 TFT Touchscreen Display (MCUFRIEND_kbv-compatible) |
+| **Touch Panel** | 4-wire resistive touch panel |
+
+### Actuation System
+
+#### Stepper Motor (Yaw / Azimuth)
+- **Option 1:** 28BYJ-48 with ULN2003 driver
+- **Option 2:** NEMA 17 with A4988 or DRV8825 driver
+
+#### Servo Motor (Pitch / Elevation)
+- Recommended: SG90, MG90S, or MG995
+- Must support standard PWM control (50Hz, 1-2ms pulse width)
+
+#### Laser Module
+- Standard 5V laser diode module
+- Power: ~30-50mA typical
+- Safety: Use appropriate laser safety class (Class 2 recommended)
 
 ### Pin Configuration
 
+#### Touchscreen Connections
 ```
-XP (X+): Digital Pin 8
-XM (X-): Analog Pin A2
-YP (Y+): Analog Pin A3
-YM (Y-): Digital Pin 9
+XP (X+) : Digital Pin 8  
+XM (X-) : Analog Pin A2  
+YP (Y+) : Analog Pin A3  
+YM (Y-) : Digital Pin 9  
 ```
+
+#### Motor Connections (Example - Adjust Based on Your Setup)
+```
+Stepper Motor:
+  IN1-IN4 : Digital Pins 2-5 (for ULN2003)
+  
+Servo Motor:
+  Signal  : Digital Pin 6 (PWM)
+  
+Laser Module:
+  Control : Digital Pin 7
+```
+
+### Power Requirements
+- **5V Power Supply:** 2A minimum (for Arduino, display, and servo)
+- **12V Power Supply:** 1A minimum (if using NEMA 17 stepper)
+- Ensure common ground between all power supplies
+
+---
 
 ## Software Requirements
 
 ### Arduino
-- Arduino IDE 1.8.x or later
-- Required Libraries:
-  - `Adafruit_GFX`
-  - `TouchScreen`
-  - `MCUFRIEND_kbv`
+
+- **Arduino IDE** 1.8.x or later
+- **Required Libraries:**
+  - `Adafruit_GFX` - Graphics library
+  - `MCUFRIEND_kbv` - TFT display driver
+  - `TouchScreen` - Resistive touch panel
+  - `Servo` - Built-in Arduino servo library
+  - _(Optional)_ `AccelStepper` - For advanced stepper control
+
+**Install libraries via Arduino IDE:**
+```
+Sketch → Include Library → Manage Libraries
+Search for each library and click "Install"
+```
 
 ### Python
-- Python 3.7+
-- Required packages:
+
+- **Python** 3.7 or later
+- **Required Packages:**
   ```bash
   pip install requests pyserial numpy
   ```
 
+#### Package Details
+- `requests` - HTTP library for NASA API calls
+- `pyserial` - Serial communication with Arduino
+- `numpy` - Numerical computations
+
+---
+
 ## Installation
 
-### 1. Clone the Repository
+### 1. Clone Repository
 
 ```bash
 git clone https://github.com/yourusername/IEEE-QP.git
@@ -58,299 +166,477 @@ cd IEEE-QP
 ### 2. Install Python Dependencies
 
 ```bash
+pip install -r requirements.txt
+```
+
+Or manually:
+```bash
 pip install requests pyserial numpy
 ```
 
 ### 3. Arduino Setup
 
 1. Open `arduino/combined_control.ino` in Arduino IDE
-2. Install required libraries via Library Manager:
-   - Adafruit GFX Library
-   - TouchScreen (by Adafruit)
-   - MCUFRIEND_kbv
-3. Upload to your Arduino board
+2. Install required libraries (see [Software Requirements](#software-requirements))
+3. **Verify pin configurations** match your hardware setup
+4. Select your board: `Tools → Board → Arduino Uno`
+5. Select your port: `Tools → Port → COM# (or /dev/ttyUSB#)`
+6. Click **Upload** ⬆️
 
-### 4. Configure Serial Port
+### 4. Configure Serial Port in Python
 
-Edit `PlanetaryObjectsFetcher.py` line 13-17 to match your Arduino's COM port:
+Edit `PlanetaryObjectsFetcher.py` to match your Arduino's serial port:
 
+**Windows:**
 ```python
-serial = serial.Serial(
-    port='COM6',  # Change to your port (e.g., 'COM3', '/dev/ttyUSB0', '/dev/ttyACM0')
+ser = serial.Serial(
+    port='COM6',      # Change to your COM port
     baudrate=9600,
     timeout=1
 )
 ```
 
-**Finding your port:**
-- **Windows**: Check Device Manager → Ports (COM & LPT)
-- **macOS/Linux**: Run `ls /dev/tty.*` or `ls /dev/ttyUSB*`
+**Linux/Mac:**
+```python
+ser = serial.Serial(
+    port='/dev/ttyUSB0',  # or /dev/ttyACM0
+    baudrate=9600,
+    timeout=1
+)
+```
+
+💡 **Tip:** Find your port in Arduino IDE under `Tools → Port`
+
+---
 
 ## Usage
 
 ### Quick Start
 
-1. **Upload Arduino sketch**: Upload `arduino/combined_control.ino` to your Arduino
-2. **Run Python script**:
+1. **Power on** your Arduino and ensure all connections are secure
+2. **Upload** the Arduino sketch if not already done
+3. **Run** the Python backend:
    ```bash
    python PlanetaryObjectsFetcher.py
    ```
-3. **Interact with touchscreen**:
-   - Touch top-left or top-right to select celestial object
-   - Touch bottom-left/right to navigate Prev/Next pages
-   - Coordinates display automatically in top-left corner
+4. **On the touchscreen:**
+   - Tap to select celestial objects
+   - Use **Prev/Next** buttons to navigate pages
+   - Watch as the system automatically moves motors and activates the laser
 
-### Common Mistakes
+### Serial Communication Protocol
 
-**Opening Serial Monitor on Arduino IDE**:
-The Serial Monitor locks the COM port and prevents Python from connecting. **You must close the Serial Monitor** before running the Python script!
+The system uses a simple text-based protocol over serial:
 
-### Communication Protocol
-
-**Arduino → Python:**
+#### Arduino → Python (Request)
 ```
 STAR:Moon
 ```
+Format: `STAR:<ObjectName>`
 
-**Python → Arduino:**
+#### Python → Arduino (Response)
 ```
 131.587713,38.069515
 ```
+Format: `<azimuth_degrees>,<elevation_degrees>`
 
-Format: `azimuth,elevation` in degrees
+#### Error Handling
+- If object not found or API fails, Python sends: `ERROR:message`
+- Arduino displays error on screen and maintains last valid position
+
+---
+
+## Motorized Tracking System
+
+The Armillary Sphere includes a fully automated pointing mechanism designed to physically track celestial objects in real time.
+
+### Yaw Control (Stepper Motor)
+
+**Responsible for:** Azimuth rotation (0°–360°)
+
+**How it works:**
+- Arduino receives target azimuth from Python
+- Converts degrees to motor steps: `steps = (azimuth / 360) * steps_per_revolution`
+- Rotates stepper motor to target position
+- Supports smooth directional motion (always takes shortest path)
+
+**Typical Configuration:**
+- 28BYJ-48: 2048 steps per revolution (with gearing)
+- NEMA 17: 200 steps per revolution (1.8° per step)
+
+### Pitch Control (Servo Motor)
+
+**Responsible for:** Elevation angle (−90° to +90°)
+
+**How it works:**
+- Arduino receives target elevation from Python
+- Maps elevation to servo pulse width: `pulse = map(elevation, -90, 90, 1000, 2000)` microseconds
+- Servo tilts laser pointer to target angle
+
+**Calibration:**
+- Adjust servo limits in code if mechanical range differs
+- Ensure 0° elevation corresponds to horizontal pointing
+
+### Laser Pointer
+
+**Mounted to:** The pitch servo arm or rotating platform
+
+**Operation:**
+- Activated when valid coordinates are received
+- Points toward chosen object's calculated sky position
+- Can be toggled on/off via touchscreen
+
+**Safety Notes:**
+- ⚠️ Never point laser at aircraft, vehicles, or people
+- ⚠️ Use only Class 2 lasers (<1mW) for safety
+- ⚠️ Follow local regulations regarding laser pointers
+
+### Motion Workflow
+
+```
+1. User taps object on touchscreen
+         ↓
+2. Arduino sends "STAR:Jupiter"
+         ↓
+3. Python queries JPL Horizons API
+         ↓
+4. Python calculates azimuth & elevation
+         ↓
+5. Python sends "157.23,42.15"
+         ↓
+6. Arduino parses coordinates
+         ↓
+7. Stepper motor rotates to azimuth (157.23°)
+         ↓
+8. Servo motor tilts to elevation (42.15°)
+         ↓
+9. Laser turns ON, pointing at Jupiter
+```
+
+---
 
 ## Available Celestial Objects
 
+The system supports **24 celestial objects** across multiple categories:
+
 ### Planets
-Sun, Mercury, Venus, Mars, Jupiter, Saturn, Uranus, Neptune
+- **Inner Planets:** Mercury, Venus, Mars
+- **Outer Planets:** Jupiter, Saturn, Uranus, Neptune
 
 ### Dwarf Planets
-Pluto, Ceres
+- Pluto
+- Ceres
 
 ### Earth's Moon
-Moon
+- Moon (Luna)
 
-### Moons of Mars
-Phobos, Deimos
+### Martian Moons
+- Phobos
+- Deimos
 
-### Galilean Moons (Jupiter)
-Io, Europa, Ganymede, Callisto
+### Jovian Moons (Jupiter)
+- Io
+- Europa
+- Ganymede
+- Callisto
 
-### Moons of Saturn
-Titan, Rhea, Iapetus, Enceladus
+### Saturnian Moons (Saturn)
+- Titan
+- Rhea
+- Iapetus
+- Enceladus
 
-### Moons of Uranus
-Titania, Oberon
+### Uranian Moons (Uranus)
+- Titania
+- Oberon
 
-### Moons of Neptune
-Triton
+### Neptunian Moons (Neptune)
+- Triton
+
+### The Sun
+- Sol (our star)
+
+---
 
 ## Project Structure
 
 ```
 IEEE-QP/
 ├── arduino/
-│   ├── combined_control.ino          # Main Arduino sketch
-│   ├── touchmapping.ino               # Legacy: Touchscreen UI only
-│   └── serial_communication.ino       # Legacy: Serial handling only
-├── PlanetaryObjectsFetcher.py         # Main Python backend
-├── PlaneraryObjectSelection.py        # JPL Horizons object ID mappings
-├── test.py                            # Standalone coordinate fetcher
-└── ReadMe.md                          # This file
+│   ├── combined_control.ino       # Main Arduino sketch
+│   ├── touchmapping.ino            # Touch calibration utilities
+│   └── serial_communication.ino    # Serial protocol handler
+│
+├── python/
+│   ├── PlanetaryObjectsFetcher.py  # Main Python backend
+│   ├── PlanetaryObjectSelection.py # Object database
+│   └── test.py                     # Testing utilities
+│
+├── docs/
+│   └── wiring_diagram.md           # Hardware connection guide
+│
+├── requirements.txt                 # Python dependencies
+├── README.md                        # This file
+└── LICENSE                          # MIT License
 ```
 
-## How It Works
+---
 
-### System Architecture
+## System Architecture
+
+### Data Flow Diagram
 
 ```
-┌─────────────────┐         Serial          ┌──────────────────┐
-│                 │  ─────────────────────>  │                  │
-│  Arduino TFT    │      "STAR:Moon"         │  Python Script   │
-│  Touchscreen    │                          │                  │
-│                 │  <─────────────────────  │                  │
-└─────────────────┘   "131.58,38.07"         └──────────────────┘
-                                                      │
-                                                      │ HTTPS
-                                                      ▼
-                                              ┌──────────────────┐
-                                              │  NASA JPL        │
-                                              │  Horizons API    │
-                                              └──────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                        User Interface                        │
+│  ┌────────────────────────────────────────────────────┐     │
+│  │         Arduino TFT Touchscreen Display            │     │
+│  │  • Object selection menu                           │     │
+│  │  • Coordinate display                              │     │
+│  │  • Status indicators                               │     │
+│  └────────────────────────────────────────────────────┘     │
+└──────────────────────┬──────────────────────────────────────┘
+                       │
+                       │ Serial Communication
+                       │ (UART @ 9600 baud)
+                       │
+        ┌──────────────▼───────────────┐
+        │                              │
+        │      Arduino Controller      │
+        │  • Parse serial commands     │
+        │  • Control motors            │
+        │  • Update display            │
+        │                              │
+        └──────┬───────────────┬───────┘
+               │               │
+     ┌─────────▼──────┐  ┌────▼──────────┐
+     │ Stepper Motor  │  │ Servo Motor   │
+     │ (Azimuth)      │  │ (Elevation)   │
+     │ + Laser        │  │               │
+     └────────────────┘  └───────────────┘
+                       
+                       
+┌─────────────────────────────────────────────────────────────┐
+│                      Python Backend                          │
+│  ┌────────────────────────────────────────────────────┐     │
+│  │         Serial Communication Handler               │     │
+│  │  • Listen for object requests                      │     │
+│  │  • Send coordinates back to Arduino                │     │
+│  └────────────────┬───────────────────────────────────┘     │
+│                   │                                          │
+│  ┌────────────────▼───────────────────────────────────┐     │
+│  │         JPL Horizons API Client                    │     │
+│  │  • Format API queries                              │     │
+│  │  • Parse ephemeris data                            │     │
+│  │  • Calculate azimuth/elevation                     │     │
+│  └────────────────┬───────────────────────────────────┘     │
+└───────────────────┼──────────────────────────────────────────┘
+                    │
+                    │ HTTPS Request
+                    │
+        ┌───────────▼────────────────┐
+        │                            │
+        │  NASA JPL Horizons System  │
+        │  • Ephemeris calculations  │
+        │  • Orbital mechanics       │
+        │                            │
+        └────────────────────────────┘
 ```
-
-### Workflow
-
-1. **User Selection**: Touch an object on the Arduino display
-2. **Request**: Arduino sends object name to Python via serial
-3. **Location Detection**: Python determines user's geographic location
-4. **API Query**: Python queries JPL Horizons for current coordinates
-5. **Data Parsing**: Extract azimuth and elevation from API response
-6. **Response**: Send coordinates back to Arduino
-7. **Display**: Arduino shows coordinates on screen
 
 ### Coordinate System
 
-- **Azimuth**: Horizontal angle (0-360°) measured clockwise from North
+The system uses the **horizontal coordinate system** (Alt-Az):
+
+- **Azimuth (Az):** 0°–360°
   - 0° = North
   - 90° = East
   - 180° = South
   - 270° = West
+  - Measured **clockwise** from North
 
-- **Elevation**: Vertical angle (0-90°) above the horizon
+- **Elevation (Alt):** −90° to +90°
   - 0° = Horizon
-  - 90° = Directly overhead (zenith)
-  - Negative values = Below horizon (not visible)
+  - +90° = Zenith (directly overhead)
+  - −90° = Nadir (directly below, not accessible)
 
-## API Reference
+### Time Synchronization
 
-### PlanetaryObjectsFetcher Class
-
-#### Methods
-
-**`get_user_location()`**
-```python
-lat, lon, elev = PlanetaryObjectsFetcher.get_user_location()
-```
-Returns user's geographic coordinates via IP geolocation.
-
-**Returns**: `(latitude, longitude, elevation)` tuple
+- Python backend uses system time (must be accurate)
+- JPL Horizons calculates positions for current UTC time
+- Recommend NTP time synchronization for best accuracy
 
 ---
-
-**`fetch_coordinates(target_body)`**
-```python
-coords = PlanetaryObjectsFetcher.fetch_coordinates("301")  # Moon
-```
-Fetch azimuth and elevation coordinates for a celestial body.
-
-**Parameters**:
-- `target_body` (str): JPL Horizons object ID
-
-**Returns**: List of coordinate strings from API
-
----
-
-**`parse_coordinates(coord_string)`**
-```python
-azimuth, elevation = PlanetaryObjectsFetcher.parse_coordinates(coord_string)
-```
-Parse raw coordinate string into azimuth/elevation values.
-
-**Parameters**:
-- `coord_string` (str): Raw coordinate string from API
-
-**Returns**: `(azimuth, elevation)` tuple in degrees
-
----
-
-**`fetch_distance(target_body)`**
-```python
-distance = PlanetaryObjectsFetcher.fetch_distance("301")
-```
-Fetch distance data from observer to celestial object.
-
-**Parameters**:
-- `target_body` (str): JPL Horizons object ID
-
-**Returns**: Distance data from API
-
-### PlanetaryObjectSelection Class
-
-Dictionary mapping common names to JPL Horizons IDs:
-
-```python
-from PlaneraryObjectSelection import PlanetaryObjectSelection
-
-moon_id = PlanetaryObjectSelection.OBJECTS["Moon"]  # Returns "301"
-mars_id = PlanetaryObjectSelection.OBJECTS["Mars"]  # Returns "499"
-```
 
 ## Troubleshooting
 
 ### Arduino Issues
 
-**Display not working:**
-- Verify TFT shield is properly seated on Arduino
-- Check library versions (update to latest)
-- Try different TFT IDs in `tft.begin(ID)`
-- Test with example sketches from MCUFRIEND library
+#### Motors not moving
+- ✅ Check motor driver connections and power supply
+- ✅ Ensure **common ground** between Arduino and motor drivers
+- ✅ Verify `steps_per_revolution` setting in code
+- ✅ Test motors independently with simple sketches
+- ✅ Check if motor driver is receiving step pulses (use LED or oscilloscope)
 
-**Touch not responsive:**
-- Verify pin connections match code
-- Adjust `MINPRESSURE` (line 5) and `MAXPRESSURE` (line 6) values
-- Calibrate touch mapping in `mapX()` and `mapY()` functions (lines 14-19)
-- Test touch with TouchScreen library examples
+#### Laser not turning on
+- ✅ Verify laser module works independently (connect to 5V/GND)
+- ✅ Check transistor/MOSFET circuit if used
+- ✅ Ensure digital pin mode is set to `OUTPUT`
+- ✅ Measure voltage at laser control pin when activated
+
+#### Touch not responding
+- ✅ Verify XP/XM/YP/YM pin assignments
+- ✅ Run `touchmapping.ino` to calibrate touch coordinates
+- ✅ Check for loose connections to touch panel
+- ✅ Test with different pressure levels
+
+#### Display shows garbage or is blank
+- ✅ Verify TFT library compatibility with your display
+- ✅ Check power supply voltage (must be stable 5V)
+- ✅ Try different display initialization sequences
+- ✅ Ensure no pin conflicts with other peripherals
 
 ### Python Issues
 
-**Serial port not found:**
-- Check Arduino is connected via USB and drivers are installed
-- Verify correct COM port in code (Windows: Device Manager, macOS/Linux: `ls /dev/tty*`)
-- **Close Arduino Serial Monitor** (conflicts with Python serial connection)
-- Try different USB ports or cables
+#### "Serial port busy" error
+- ✅ Close Arduino Serial Monitor before running Python script
+- ✅ Check if another program is using the port
+- ✅ On Linux: ensure user is in `dialout` group
+  ```bash
+  sudo usermod -a -G dialout $USER
+  # Then log out and back in
+  ```
 
-**API request failures:**
-- Check internet connection
-- Verify JPL Horizons API is accessible: https://ssd.jpl.nasa.gov/api/horizons.api
-- Check for rate limiting (wait a few seconds between requests)
-- Verify object ID exists in `PlanetaryObjectSelection.OBJECTS`
+#### API request failure
+- ✅ Check internet connection
+- ✅ Verify JPL Horizons endpoint is accessible
+- ✅ Check for rate limiting (NASA may throttle requests)
+- ✅ Ensure firewall isn't blocking outbound HTTPS
 
-**Location detection fails:**
-- System falls back to (0, 0, 0) coordinates
-- Check internet connection for IP geolocation
-- Manually set location in `get_user_location()` if needed
+#### Incorrect coordinates
+- ✅ Verify system time is accurate (use NTP)
+- ✅ Check location coordinates in geolocation response
+- ✅ Ensure object name matches JPL Horizons database exactly
+- ✅ Account for local horizon obstructions
 
-**Import errors:**
-- Ensure all dependencies are installed: `pip install requests pyserial numpy`
-- Check Python version is 3.7+
+#### Serial communication drops
+- ✅ Check USB cable quality
+- ✅ Reduce baud rate if experiencing errors
+- ✅ Add timeout handling in Python script
+- ✅ Verify Arduino isn't resetting (capacitor on RESET pin may help)
 
-## Data Sources
+### Mechanical Issues
 
-- **Astronomical Data**: NASA JPL Horizons System API
-  - Documentation: https://ssd.jpl.nasa.gov/horizons/
-  - API Access: https://ssd-api.jpl.nasa.gov/doc/horizons.html
+#### Laser doesn't point at object
+- ✅ Calibrate zero positions for both motors
+- ✅ Verify azimuth direction (CW vs CCW)
+- ✅ Check if servo elevation angle is correctly mapped
+- ✅ Account for physical mounting offsets in code
+- ✅ Ensure motors aren't skipping steps (reduce speed/acceleration)
 
-- **Location Data**: IPInfo.io Geolocation API
-  - Service: https://ipinfo.io
-
-## Future Enhancements
-
-- [ ] Store and display object distance (range)
-- [ ] Add constellation identification
-- [ ] Implement custom object tracking (asteroids, comets)
-- [ ] Add GPS module for precise location
-- [ ] Save favorite objects
-- [ ] Time-based prediction (future positions)
-- [ ] Export tracking data to CSV/JSON
-- [ ] Add rise/set times for objects
-- [ ] Implement compass mode for finding objects
-
-## Contributing
-
-Contributions are welcome! Please follow these steps:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Acknowledgments
-
-- NASA JPL for providing the Horizons API
-- Adafruit for excellent Arduino libraries
-- IPInfo.io for geolocation services
-- MCUFRIEND for TFT display library
-
-## Contact
-
-For questions or support, please open an issue on GitHub.
+#### Jerky or noisy motion
+- ✅ Implement acceleration/deceleration curves
+- ✅ Use `AccelStepper` library for smoother stepper control
+- ✅ Check for mechanical binding or friction
+- ✅ Reduce motor speed and increase holding torque
 
 ---
 
-**Note**: This project is for educational purposes and astronomical observation. Coordinate accuracy depends on location detection precision and API data freshness. For professional astronomical work, use dedicated equipment with GPS and precise time synchronization.
+## Future Enhancements
+
+### Short Term
+- [ ] Add homing/calibration routine on startup
+- [ ] Implement emergency stop button
+- [ ] Add battery level indicator for portable operation
+- [ ] Store favorite objects for quick access
+
+### Medium Term
+- [ ] GPS module integration for automatic location detection
+- [ ] Real-time clock (RTC) for accurate timekeeping without internet
+- [ ] SD card logging of pointing sessions
+- [ ] Automatic tracking mode (continuously update position as objects move)
+
+### Long Term
+- [ ] Full star catalog support (Hipparcos/Tycho)
+- [ ] Predict rise/set times and visibility windows
+- [ ] Deep sky object database (Messier, NGC)
+- [ ] Automated sky scanning/sweeping mode
+- [ ] Mobile app control via Bluetooth
+- [ ] Camera mount for astrophotography assistance
+
+---
+
+## Contributing
+
+Contributions are welcome! Please follow these guidelines:
+
+1. **Fork** the repository
+2. **Create** a feature branch (`git checkout -b feature/AmazingFeature`)
+3. **Commit** your changes (`git commit -m 'Add some AmazingFeature'`)
+4. **Push** to the branch (`git push origin feature/AmazingFeature`)
+5. **Open** a Pull Request
+
+### Contribution Ideas
+- Add support for new celestial objects
+- Improve motor control algorithms
+- Create wiring diagrams and schematics
+- Write tutorials and documentation
+- Report bugs and suggest features
+
+---
+
+## Data Sources & Credits
+
+- **NASA JPL Horizons System** - Ephemeris data
+  - [https://ssd.jpl.nasa.gov/horizons/](https://ssd.jpl.nasa.gov/horizons/)
+- **IPInfo.io** - Geolocation API
+  - [https://ipinfo.io/](https://ipinfo.io/)
+- **Adafruit** - Graphics and display libraries
+- **Arduino Community** - Various hardware libraries
+
+---
+
+## License
+
+This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+
+### MIT License Summary
+```
+Permission is granted to use, copy, modify, and distribute this software
+for any purpose with or without fee, provided copyright notices are retained.
+```
+
+---
+
+## Safety & Legal Disclaimer
+
+⚠️ **Important Safety Information:**
+
+- This device uses a **laser pointer**. Never point lasers at people, animals, vehicles, or aircraft.
+- Use only **Class 2 lasers** (<1mW output) for this project.
+- Follow all **local regulations** regarding laser pointer use.
+- This device is for **educational and experimental purposes** only.
+- The creators assume **no liability** for misuse or injuries.
+
+---
+
+## Contact & Support
+
+- **GitHub Issues:** [Report bugs or request features](https://github.com/yourusername/IEEE-QP/issues)
+- **Discussions:** [Ask questions and share ideas](https://github.com/yourusername/IEEE-QP/discussions)
+- **Email:** your.email@example.com
+
+---
+
+## Acknowledgments
+
+Special thanks to:
+- NASA's Jet Propulsion Laboratory for free access to Horizons data
+- The Arduino and Python communities for excellent tools and libraries
+- All contributors and testers who helped improve this project
+
+---
+
+**Made with ❤️ for the IEEE Quarterly Projects**
+
+*Clear skies and happy tracking!* 🌙✨
